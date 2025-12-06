@@ -1,7 +1,7 @@
 name: Auto Close Pull Request
 
 on:
-  pull_request_target:
+  pull_request:
     types: [opened, synchronize, reopened]
 
 jobs:
@@ -18,34 +18,25 @@ jobs:
             const pr = context.payload.pull_request;
             const prNumber = pr.number;
             const prTitle = pr.title.toLowerCase();
-            const prBody = pr.body ? pr.body.toLowerCase() : '';
-            const baseBranch = pr.base.ref;
-            const headBranch = pr.head.ref;
             const author = pr.user.login;
 
             let shouldClose = false;
-            let closeReason = '';
+            let closeReasons = [];
 
             // Condition 1: Close PRs with "[WIP]" or "WIP:" in the title
             if (prTitle.includes('[wip]') || prTitle.startsWith('wip:')) {
               shouldClose = true;
-              closeReason = 'This PR appears to be a Work in Progress (WIP). Please remove "[WIP]" or "WIP:" from the title and reopen when ready for review.';
+              closeReasons.push('This PR appears to be a Work in Progress (WIP). Please remove "[WIP]" or "WIP:" from the title when ready for review.');
             }
 
             // Condition 2: Close PRs with empty body/description
             if (!pr.body || pr.body.trim() === '') {
               shouldClose = true;
-              closeReason = 'This PR was closed because it lacks a description. Please add a meaningful description explaining your changes and reopen the PR.';
-            }
-
-            // Condition 3: Close PRs from certain bot accounts (example: dependabot can be excluded if needed)
-            const botPatterns = ['[bot]'];
-            if (botPatterns.some(pattern => author.toLowerCase().includes(pattern))) {
-              // You can customize this - currently just logs but doesn't close bot PRs by default
-              console.log(`PR #${prNumber} is from a bot account: ${author}`);
+              closeReasons.push('This PR lacks a description. Please add a meaningful description explaining your changes.');
             }
 
             if (shouldClose) {
+              const closeReason = closeReasons.join('\n\n');
               // Add a comment explaining why the PR was closed
               await github.rest.issues.createComment({
                 owner: context.repo.owner,
